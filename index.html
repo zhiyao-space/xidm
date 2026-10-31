@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MONO/CODE — AI Coding Workspace</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0a0a'/%3E%3Ctext x='16' y='21' font-family='monospace' font-size='12' font-weight='700' fill='%23fff' text-anchor='middle'%3EM/C%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <aside class="sidebar" id="sidebar">
+    <header class="brand">
+      <div class="brand-mark">M/C</div>
+      <div class="brand-text">
+        <h1>MONO<span>/</span>CODE</h1>
+        <p>AI CODING WORKSPACE</p>
+      </div>
+      <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="关闭侧栏">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <nav class="side-nav" id="sideNav">
+      <button class="nav-item active" data-panel="panel-api">
+        <span class="nav-index">01</span><span>API 接入</span>
+        <svg class="nav-arrow" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </button>
+
+      <section class="nav-panel" id="panel-api">
+        <div class="field">
+          <label>配置预设</label>
+          <div class="preset-row">
+            <select id="presetSelect" aria-label="选择预设"></select>
+            <button class="icon-btn bordered" id="btnPresetNew" title="新增预设">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+            <button class="icon-btn bordered" id="btnPresetDel" title="删除当前预设">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <label>备注名称</label>
+          <input type="text" id="cfgName" placeholder="如：主力模型 / 备用渠道" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>BASE URL</label>
+          <input type="text" id="cfgBaseUrl" placeholder="https://api.openai.com/v1" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>API KEY</label>
+          <input type="password" id="cfgApiKey" placeholder="sk-..." spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>MODEL</label>
+          <input type="text" id="cfgModel" list="modelList" placeholder="点「识别模型」自动拉取" spellcheck="false" autocomplete="off">
+        </div>
+        <datalist id="modelList"></datalist>
+        <div class="field-row">
+          <button class="btn ghost sm" id="btnFetchModels">识别模型</button>
+          <button class="btn ghost sm" id="btnTestApi">测试连通</button>
+        </div>
+        <div class="field-row">
+          <button class="btn solid sm" id="btnSaveApi">保存预设</button>
+        </div>
+        <p class="hint">预设保存在本地浏览器，可建立多套配置并命名备注便于查找；「识别模型」通过服务的 /models 接口自动拉取可用模型列表。</p>
+        <div class="field">
+          <label>系统提示词</label>
+          <textarea id="cfgSystem" rows="4" spellcheck="false"></textarea>
+        </div>
+      </section>
+
+      <button class="nav-item" data-panel="panel-repo">
+        <span class="nav-index">02</span><span>仓库拉取</span>
+        <svg class="nav-arrow" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </button>
+
+      <section class="nav-panel" id="panel-repo">
+        <div class="field">
+          <label>仓库地址</label>
+          <input type="text" id="repoUrl" placeholder="https://github.com/owner/repo" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>访问令牌 TOKEN</label>
+          <input type="password" id="repoToken" placeholder="ghp_... / 私有仓库必填" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field-row">
+          <input type="text" id="repoBranch" placeholder="分支(可选)" spellcheck="false" autocomplete="off">
+          <button class="btn solid sm" id="btnFetchRepo">拉取</button>
+        </div>
+        <div class="progress" id="repoProgress" hidden>
+          <div class="progress-head"><span id="repoStatusText">准备中</span><span id="repoPercent">0%</span></div>
+          <div class="progress-track"><div class="progress-bar" id="repoBar"></div></div>
+        </div>
+        <div class="repo-files" id="repoFiles"></div>
+      </section>
+
+      <button class="nav-item" data-panel="panel-files">
+        <span class="nav-index">03</span><span>工作区文件</span>
+        <span class="nav-badge" id="fileCount">0</span>
+      </button>
+
+      <section class="nav-panel" id="panel-files">
+        <div class="ws-files" id="wsFiles"></div>
+        <div class="field-row">
+          <button class="btn ghost sm" id="btnNewFile">新建</button>
+          <button class="btn solid sm" id="btnZipAll">打包 ZIP</button>
+        </div>
+      </section>
+
+      <button class="nav-item" data-panel="panel-about">
+        <span class="nav-index">04</span><span>说明</span>
+      </button>
+      <section class="nav-panel" id="panel-about">
+        <p class="about-p">MONO/CODE 是一个纯前端 AI 编码工作台。填入兼容 OpenAI 接口的服务配置即可对话生成代码；填入仓库地址与令牌即可将 Git 项目文件拉入工作区。</p>
+        <p class="about-p">长按消息可复制、引用、编辑、重新生成或继续生成。生成的代码可写入工作区、单独导出或打包为 ZIP。预览面板可全屏查看运行效果。</p>
+        <p class="about-p">所有数据仅存于浏览器本地。API KEY 与 TOKEN 请自行保管。</p>
+      </section>
+    </nav>
+
+    <footer class="side-foot">
+      <span>MONO/CODE</span><span>V 1.0</span>
+    </footer>
+  </aside>
+
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="菜单">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <div class="topbar-title">
+        <span class="dot" id="genDot"></span>
+        <h2 id="chatTitle">UNTITLED SESSION</h2>
+        <span class="topbar-meta" id="genMeta"></span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn ghost sm" id="btnClear">清空会话</button>
+        <button class="btn solid sm" id="btnPreview">
+          <svg viewBox="0 0 24 24" class="btn-ico"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+          预览
+        </button>
+      </div>
+    </header>
+
+    <div class="chat" id="chat">
+      <div class="chat-empty" id="chatEmpty">
+        <div class="empty-mark">M/C</div>
+        <h3>从一个想法开始</h3>
+        <p>描述你要构建的东西，或先在左侧配置 API 与拉取仓库文件。</p>
+        <div class="empty-acts" id="emptyActs">
+          <button class="chip" data-prompt="用 HTML/CSS/JS 写一个带粒子背景的个人主页，要求纯黑白风格">写一个个人主页</button>
+          <button class="chip" data-prompt="用 HTML/CSS/JS 做一个番茄钟应用，含倒计时、暂停、重置与统计">做番茄钟</button>
+          <button class="chip" data-prompt="分析我工作区里的项目文件，总结项目结构与核心逻辑">分析工作区</button>
+        </div>
+      </div>
+      <div class="chat-list" id="chatList"></div>
+    </div>
+
+    <div class="statusbar" id="statusbar" hidden>
+      <div class="status-left">
+        <span class="status-spinner"></span>
+        <span class="status-label" id="statusLabel">连接模型</span>
+      </div>
+      <div class="status-right">
+        <span id="statusTime">0.0s</span>
+        <span class="status-sep">/</span>
+        <span id="statusChars">0 chars</span>
+        <button class="icon-btn sm" id="btnStop" title="停止生成">
+          <svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+        </button>
+      </div>
+      <div class="status-track"><div class="status-indet" id="statusIndet"></div></div>
+    </div>
+
+    <footer class="composer">
+      <div class="attach-chips" id="attachChips"></div>
+      <div class="composer-box">
+        <button class="icon-btn attach-btn" id="btnAttach" title="上传文件">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <textarea id="input" rows="1" placeholder="描述需求，或长按消息进行操作 …" spellcheck="false"></textarea>
+        <button class="send-btn" id="btnSend" title="发送">
+          <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <input type="file" id="fileInput" multiple hidden>
+      <p class="composer-hint">Enter 发送 · Shift+Enter 换行 · 长按消息弹出操作菜单</p>
+    </footer>
+  </main>
+</div>
+
+<div class="ctx-menu" id="ctxMenu" hidden>
+  <button data-act="copy">复制内容</button>
+  <button data-act="quote">引用</button>
+  <button data-act="edit">编辑</button>
+  <button data-act="regen">重新生成</button>
+  <button data-act="continue">继续生成</button>
+</div>
+
+<div class="overlay" id="editOverlay">
+  <div class="overlay-card">
+    <h3>编辑消息</h3>
+    <textarea id="editText" rows="6" spellcheck="false"></textarea>
+    <div class="field-row right">
+      <button class="btn ghost sm" id="editCancel">取消</button>
+      <button class="btn solid sm" id="editSave">保存并重发</button>
+    </div>
+  </div>
+</div>
+
+<div class="preview-layer" id="previewLayer" hidden>
+  <header class="preview-bar">
+    <div class="preview-title"><span class="dot on"></span>PREVIEW<span id="previewFile"></span></div>
+    <div class="preview-actions">
+      <button class="btn ghost sm" id="btnPreviewRefresh">刷新</button>
+      <button class="btn ghost sm" id="btnPreviewFs">全屏</button>
+      <button class="icon-btn" id="btnPreviewClose" title="关闭">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+  <div class="preview-stage" id="previewStage">
+    <iframe id="previewFrame" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe>
+  </div>
+</div>
+
+<div class="file-editor" id="fileEditor" hidden>
+  <header class="preview-bar">
+    <div class="preview-title">EDIT<span id="editorFileName"></span></div>
+    <div class="preview-actions">
+      <button class="btn ghost sm" id="btnEditorPreview">预览此文件</button>
+      <button class="btn solid sm" id="btnEditorSave">保存</button>
+      <button class="icon-btn" id="btnEditorClose" title="关闭">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+  <textarea id="editorText" spellcheck="false"></textarea>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/zip.js"></script>
+<script src="js/git.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
