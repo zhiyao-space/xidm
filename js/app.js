@@ -131,14 +131,58 @@
 
   /* ---------------- API config ---------------- */
 
+  function activePresetModels() {
+    var p = S.presets.find(function (x) { return x.id === S.activePresetId; });
+    return p && p.models ? p.models : [];
+  }
+
+  function closeDropdowns() {
+    $('presetMenu').hidden = true;
+    $('modelMenu').hidden = true;
+    $('presetDD').classList.remove('open');
+    $('modelDD').classList.remove('open');
+  }
+
   function renderModelDatalist(models) {
-    var dl = $('modelList');
-    dl.innerHTML = '';
-    (models || []).forEach(function (id) {
-      var o = document.createElement('option');
-      o.value = id;
-      dl.appendChild(o);
+    var box = $('modelOptions');
+    if (!box) return;
+    box.innerHTML = '';
+    var list = models || [];
+    var q = ($('modelSearch').value || '').trim().toLowerCase();
+    var shown = q ? list.filter(function (m) { return m.toLowerCase().indexOf(q) >= 0; }) : list;
+
+    if (!list.length) {
+      var h = document.createElement('div');
+      h.className = 'dd-hint';
+      h.textContent = '暂无模型列表 · 先点「识别模型」拉取';
+      box.appendChild(h);
+      return;
+    }
+    if (!shown.length) {
+      var nh = document.createElement('div');
+      nh.className = 'dd-hint';
+      nh.textContent = '无匹配模型';
+      box.appendChild(nh);
+      return;
+    }
+    shown.slice(0, 300).forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dd-item';
+      b.textContent = m;
+      b.addEventListener('click', function () {
+        $('cfgModel').value = m;
+        syncSettingsFromForm();
+        saveSettings();
+        closeDropdowns();
+        toast('已选择：' + m);
+      });
+      box.appendChild(b);
     });
+    var cnt = document.createElement('div');
+    cnt.className = 'dd-hint';
+    cnt.textContent = '共 ' + shown.length + ' 个模型' + (q ? ' · 已按「' + q + '」过滤' : '');
+    box.appendChild(cnt);
   }
 
   function syncSettingsFromForm() {
@@ -153,31 +197,55 @@
     $('cfgBaseUrl').value = p ? (p.baseUrl || '') : '';
     $('cfgApiKey').value = p ? (p.apiKey || '') : '';
     $('cfgModel').value = p ? (p.model || '') : '';
-    renderModelDatalist(p && p.models ? p.models : []);
+    updatePresetLabel();
     syncSettingsFromForm();
     saveSettings();
   }
 
-  function renderPresetSelect() {
-    var sel = $('presetSelect');
-    sel.innerHTML = '';
+  function updatePresetLabel() {
+    var p = S.presets.find(function (x) { return x.id === S.activePresetId; }) || null;
+    $('presetLabel').textContent = p
+      ? (p.name || '未命名') + (p.model ? ' · ' + p.model : '')
+      : '（暂无预设 · 填写后保存）';
+  }
+
+  function renderPresetMenu() {
+    var menu = $('presetMenu');
+    menu.innerHTML = '';
+    if (!S.presets.length) {
+      var hint = document.createElement('div');
+      hint.className = 'dd-hint';
+      hint.textContent = '暂无预设 · 填写配置后点「保存预设」';
+      menu.appendChild(hint);
+      return;
+    }
     S.presets.forEach(function (p) {
-      var o = document.createElement('option');
-      o.value = p.id;
-      o.textContent = (p.name || '未命名') + (p.model ? ' · ' + p.model : '');
-      sel.appendChild(o);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dd-item' + (p.id === S.activePresetId ? ' active' : '');
+      var label = document.createElement('span');
+      label.textContent = p.name || '未命名';
+      var sub = document.createElement('span');
+      sub.className = 'sub';
+      sub.textContent = p.model || '';
+      b.appendChild(label);
+      b.appendChild(sub);
+      b.addEventListener('click', function () {
+        S.activePresetId = p.id;
+        store.set('mono_active_preset', S.activePresetId);
+        applyPreset(p);
+        closeDropdowns();
+        toast('已切换预设：' + (p.name || '未命名'));
+      });
+      menu.appendChild(b);
     });
+  }
+
+  function renderPresetSelect() {
     var valid = S.presets.some(function (p) { return p.id === S.activePresetId; });
     if (!valid) S.activePresetId = S.presets.length ? S.presets[0].id : '';
-    if (!S.presets.length) {
-      var o = document.createElement('option');
-      o.value = '';
-      o.textContent = '（暂无预设 · 填写后保存）';
-      sel.appendChild(o);
-    }
-    sel.value = S.activePresetId || '';
-    var cur = S.presets.find(function (p) { return p.id === S.activePresetId; }) || null;
-    applyPreset(cur);
+    updatePresetLabel();
+    if (!$('presetMenu').hidden) renderPresetMenu();
     store.set('mono_active_preset', S.activePresetId);
   }
 
@@ -197,36 +265,38 @@
     }
     $('cfgSystem').value = S.settings.system || DEFAULT_SYSTEM;
 
-    $('presetSelect').addEventListener('change', function () {
-      var p = S.presets.find(function (x) { return x.id === $('presetSelect').value; });
-      if (!p) return;
-      S.activePresetId = p.id;
-      store.set('mono_active_preset', S.activePresetId);
-      applyPreset(p);
-      toast('已切换预设：' + (p.name || '未命名'));
+    $('presetToggle').addEventListener('click', function () {
+      var willOpen = $('presetMenu').hidden;
+      closeDropdowns();
+      if (willOpen) {
+        renderPresetMenu();
+        $('presetMenu').hidden = false;
+        $('presetDD').classList.add('open');
+      }
     });
 
-    $('btnPresetNew').addEventListener('click', function () {
-      var p = { id: 'p' + Date.now(), name: '新配置 ' + (S.presets.length + 1), baseUrl: '', apiKey: '', model: '', models: [] };
-      S.presets.push(p);
-      S.activePresetId = p.id;
-      store.set('mono_presets', S.presets);
-      store.set('mono_active_preset', S.activePresetId);
-      renderPresetSelect();
-      $('cfgName').focus();
-      toast('已新增预设，填写后点击保存');
+    $('btnModelToggle').addEventListener('click', function () {
+      var willOpen = $('modelMenu').hidden;
+      closeDropdowns();
+      if (willOpen) {
+        $('modelSearch').value = '';
+        renderModelDatalist(activePresetModels());
+        $('modelMenu').hidden = false;
+        $('modelDD').classList.add('open');
+        $('modelSearch').focus();
+      }
     });
 
-    $('btnPresetDel').addEventListener('click', function () {
-      if (!S.activePresetId) { toast('当前没有可删除的预设'); return; }
-      var p = S.presets.find(function (x) { return x.id === S.activePresetId; });
-      if (!confirm('确认删除预设「' + (p ? p.name : '') + '」？')) return;
-      S.presets = S.presets.filter(function (x) { return x.id !== S.activePresetId; });
-      S.activePresetId = S.presets.length ? S.presets[0].id : '';
-      store.set('mono_presets', S.presets);
-      store.set('mono_active_preset', S.activePresetId);
-      renderPresetSelect();
-      toast('预设已删除');
+    $('modelSearch').addEventListener('input', function () {
+      renderModelDatalist(activePresetModels());
+    });
+
+    document.addEventListener('pointerdown', function (e) {
+      if (!e.target.closest('#presetDD') && !e.target.closest('#modelDD')) closeDropdowns();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeDropdowns();
     });
 
     $('btnFetchModels').addEventListener('click', async function () {
@@ -238,9 +308,9 @@
       try {
         var ids = await MonoAPI.listModels(cfg);
         if (!ids.length) throw new Error('服务未返回模型列表');
-        renderModelDatalist(ids);
         var p = S.presets.find(function (x) { return x.id === S.activePresetId; });
         if (p) { p.models = ids; store.set('mono_presets', S.presets); }
+        if (!$('modelMenu').hidden) renderModelDatalist(ids);
         if (!$('cfgModel').value.trim()) {
           $('cfgModel').value = ids[0];
           syncSettingsFromForm();
@@ -1318,19 +1388,23 @@
 
   /* ---------------- Boot ---------------- */
 
+  function safe(fn) {
+    try { fn(); } catch (e) { console.error('[MONO/CODE] init failed:', fn.name, e); }
+  }
+
   function boot() {
-    initNav();
-    initApiPanel();
-    initRepoPanel();
-    initFilesPanel();
-    initChat();
-    initCtxMenu();
-    initEditOverlay();
-    initComposer();
-    initPreview();
-    renderWsFiles();
-    renderAttachments();
-    autoGrow();
+    safe(initNav);
+    safe(initApiPanel);
+    safe(initRepoPanel);
+    safe(initFilesPanel);
+    safe(initChat);
+    safe(initCtxMenu);
+    safe(initEditOverlay);
+    safe(initComposer);
+    safe(initPreview);
+    safe(renderWsFiles);
+    safe(renderAttachments);
+    safe(autoGrow);
     document.querySelector('.nav-item[data-panel="panel-api"]').click();
   }
 
